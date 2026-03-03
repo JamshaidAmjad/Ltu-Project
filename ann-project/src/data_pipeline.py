@@ -5,6 +5,7 @@ import os
 import glob
 from pathlib import Path
 from torch.utils.data import Dataset, DataLoader
+
 # ------------Note------------
 #    You should have this package installed "soundfile", if you don't have it, run "pip install soundfile" in your terminal.
 #    and then restart your vscode terminal. 
@@ -26,7 +27,7 @@ class SpeechNoiseDataset(Dataset):
         self.noise_files = glob.glob(os.path.join(noise_dir, "**/*.wav"), recursive=True)
         
         # Create a mapping from word strings to integers
-        # This is essential for the CNN (P2) and RNN (P3) classifiers
+        # This is essential for the CNN and RNN classifiers
         self.labels = sorted(list(set(datapoint[2] for datapoint in speech_ds.dataset)))
         self.label_to_idx = {label: i for i, label in enumerate(self.labels)}
 
@@ -83,15 +84,17 @@ class SpeechNoiseDataset(Dataset):
             
         return mixed_waveform, torch.tensor(label_idx)
 
-def get_dataloaders(noise_dir=ESC50_PATH, batch_size=32, noise_level=0.0, transform=None):
-
+def get_dataloaders(noise_dir=ESC50_PATH, batch_size=32, noise_level=0.0, transform=None, train_split=0.8, val_split=0.1):
+    if train_split + val_split >= 1.0:
+        raise ValueError("train_split and val_split must sum to less than 1.0")
+    
     # Load Google Speech Commands
     base_ds = torchaudio.datasets.SPEECHCOMMANDS(root=DATA_DIR, download=True)
     
-    # 80/10/10 Split (Train/Val/Test)
+    # Default 80/10/10 Split (Train/Val/Test)
     total = len(base_ds)
-    train_len = int(0.8 * total)
-    val_len = int(0.1 * total)
+    train_len = int(train_split * total)
+    val_len = int(val_split * total)
     test_len = total - train_len - val_len
     
     train_b, val_b, test_b = torch.utils.data.random_split(base_ds, [train_len, val_len, test_len])
@@ -106,38 +109,13 @@ def get_dataloaders(noise_dir=ESC50_PATH, batch_size=32, noise_level=0.0, transf
     
     return train_loader, val_loader, test_loader
 
-# if __name__ == "__main__":
-#     print("Initializing Data Pipeline Test...")
-    
-#     # Check if data exists before starting to warn the user
-#     dataset_path = os.path.join(DATA_DIR, "SpeechCommands")
-#     if not os.path.exists(dataset_path):
-#         print(f"--- Dataset not found at {dataset_path} ---")
-#         print("Starting download and extraction (approx. 2GB). This may take 5-15 minutes...")
-
-#     try:
-#         # This is where it "hangs" - the dataset is quite large
-#         train_loader = get_dataloaders(noise_level=0.1, batch_size=4)
-        
-#         print("Dataset loaded successfully! Attempting to fetch a batch...")
-#         waveforms, labels = next(iter(train_loader))
-        
-#         print("\n--- Test Successful ---")
-#         print(f"Batch Waveform Shape: {waveforms.shape}") # Should be [4, 1, 16000]
-#         print(f"Batch Labels: {labels}")
-        
-#     except Exception as e:
-#         print(f"\n--- Test Failed ---")
-#         print(f"Error: {e}")
-
-
 
 import matplotlib.pyplot as plt
 
 def test_dataset_logic():
     print("--- Starting Detailed Logic Test ---")
     
-    # 1. Setup - We'll use 0.1 noise level for the first check
+    # 0.1 noise level for the first check
     try:
         train_loader, _, _ = get_dataloaders(noise_level=0.1, batch_size=1)
         dataset = train_loader.dataset
@@ -191,6 +169,8 @@ def test_dataset_logic():
     plt.tight_layout()
     plt.show()
     print("--- Test Complete ---")
+
+# -----------Test code to verify dataset logic and noise mixing-----------
 
 if __name__ == "__main__":
     test_dataset_logic()
