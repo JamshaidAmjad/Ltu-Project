@@ -1,6 +1,6 @@
 # Data files — download locally, do not commit
-ann-project/data/*
-!ann-project/data/README.md
+data/*
+!data/README.md
 
 # Python
 __pycache__/

@@ -28,7 +28,10 @@ class SpeechNoiseDataset(Dataset):
         
         # Create a mapping from word strings to integers
         # This is essential for the CNN and RNN classifiers
-        self.labels = sorted(list(set(datapoint[2] for datapoint in speech_ds.dataset)))
+        self.labels = ['backward', 'bed', 'bird', 'cat', 'dog', 'down', 'eight', 'five',
+               'follow', 'forward', 'four', 'go', 'happy', 'house', 'learn', 'left',
+               'marvin', 'nine', 'no', 'off', 'on', 'one', 'right', 'seven', 'sheila',
+               'six', 'stop', 'three', 'tree', 'two', 'up', 'visual', 'wow', 'yes', 'zero']
         self.label_to_idx = {label: i for i, label in enumerate(self.labels)}
 
     def _mix_noise(self, speech_wave, noise_level):
