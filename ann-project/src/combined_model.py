@@ -21,21 +21,21 @@ class SmallCombinedModel(nn.Module):
         super().__init__()
 
         self.cnn = nn.Sequential(
-            nn.Conv2d(1, 16, 3, padding=1),   # reduced channels
-            nn.BatchNorm2d(16),
+            nn.Conv2d(1, 8, 3, padding=1),   # reduced channels
+            nn.BatchNorm2d(8),
             nn.ReLU(),
             nn.MaxPool2d((2,2))
         )
 
         self.rnn = nn.LSTM(
-            input_size=800,   # 640
-            hidden_size=64,     # much smaller
+            input_size=400,   # 640
+            hidden_size=48,     # much smaller
             num_layers=1,       # single layer
             bidirectional=False,
             batch_first=True
         )
 
-        self.fc = nn.Linear(64, vocab_size)
+        self.fc = nn.Linear(48, vocab_size)
 
     def forward(self, x):
         x = self.cnn(x)
@@ -166,12 +166,19 @@ train_loader, val_loader, test_loader = get_dataloaders(
 
 if __name__ == '__main__':
     model = SmallCombinedModel()
+    total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Combined model trainable parameters: {total_params:,}")
+
+    dummy = torch.zeros(4, 1, 64, 101)
+    output = model(dummy)
+    print(f"Input shape:  {dummy.shape}")
+    print(f"Output shape: {output.shape}")
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
     cached_test  = build_cached_loader(test_loader,  'full_test',  0.0, 128)
     cached_test_10  = build_cached_loader(test_loader,  'full_test',  0.1, 128)
     cached_test_50 = build_cached_loader(test_loader,  'full_test',  0.5, 128)
-    if haveModel():
+    if haveModel() and False:
         print("Loading existing combined model...")
         state, history = loadCombinedModel()
         model.load_state_dict(state)
