@@ -5,6 +5,19 @@ import os
 import glob
 from pathlib import Path
 from torch.utils.data import Dataset, DataLoader
+import soundfile as sf
+#-------------Note------------
+# I had to add this due to newer version of torchaudio didn't work with the soundfiles as is
+def _load_soundfile(filepath, frame_offset=0, num_frames=-1, normalize=True, channels_first=True, format=None):
+    data, sample_rate = sf.read(filepath, dtype='float32', always_2d=True)
+    data = torch.from_numpy(data.T)  # channels first
+    if frame_offset > 0:
+        data = data[:, frame_offset:]
+    if num_frames > 0:
+        data = data[:, :num_frames]
+    return data, sample_rate
+torchaudio.load = _load_soundfile
+#-----------------------------------------------------
 
 # ------------Note------------
 #    You should have this package installed "soundfile", if you don't have it, run "pip install soundfile" in your terminal.
