@@ -178,7 +178,7 @@ if __name__ == '__main__':
     cached_test  = build_cached_loader(test_loader,  'full_test',  0.0, 128)
     cached_test_10  = build_cached_loader(test_loader,  'full_test',  0.1, 128)
     cached_test_50 = build_cached_loader(test_loader,  'full_test',  0.5, 128)
-    if haveModel() and False:
+    if haveModel():
         print("Loading existing combined model...")
         state, history = loadCombinedModel()
         model.load_state_dict(state)
