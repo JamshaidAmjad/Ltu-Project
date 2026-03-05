@@ -30,3 +30,5 @@ Thumbs.db
 results/*.pth
 results/spec_cache/
 results/test_plot.png
+!results/.gitkeep
+!results/*.md
