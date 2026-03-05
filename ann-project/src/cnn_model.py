@@ -11,6 +11,10 @@ from torch.utils.data import DataLoader, TensorDataset
 
 torch.set_num_threads(4)
 
+# Check for CUDA availability
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+
 # ── Constants ───────────────────────────────────────────────────────────
 SAMPLE_RATE = 16000
 N_CLASSES   = 35
@@ -140,6 +144,7 @@ def train_cnn(model, train_loader, val_loader, epochs=30, lr=1e-3):
         tr_loss, tr_correct, tr_total = 0.0, 0, 0
 
         for specs, labels in train_loader:
+            specs, labels = specs.to(device), labels.to(device)  # Move tensors to the GPU
             optimizer.zero_grad(set_to_none=True)
             logits = model(specs)
             loss   = criterion(logits, labels)
@@ -186,6 +191,7 @@ def _evaluate(model, loader, criterion):
     model.eval()
     total_loss, correct, total = 0.0, 0, 0
     for specs, labels in loader:
+        specs, labels = specs.to(device), labels.to(device) # Move tensors to the GPU
         logits      = model(specs)
         loss        = criterion(logits, labels)
         total_loss += loss.item() * labels.size(0)
@@ -210,7 +216,7 @@ if __name__ == '__main__':
     sys.path.insert(0, '.')
     from data_pipeline import get_dataloaders
 
-    model    = build_cnn_model()
+    model = build_cnn_model().to(device)  # Move model to GPU if available
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f'CNN trainable parameters: {n_params:,}')
 
