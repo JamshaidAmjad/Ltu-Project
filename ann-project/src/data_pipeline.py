@@ -116,7 +116,7 @@ def get_dataloaders(noise_dir=ESC50_PATH, batch_size=32, noise_level=0.0, transf
     train_b, val_b, test_b = torch.utils.data.random_split(base_ds, [train_len, val_len, test_len])
     
     # Return loaders for the specific noise levels required: 0%, 10%, or 50%
-    train_loader = DataLoader(SpeechNoiseDataset(train_b, noise_dir, noise_level, transform=transform), 
+    train_loader = DataLoader(SpeechNoiseDataset(train_b, noise_dir, 0, transform=transform), 
                               batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(SpeechNoiseDataset(val_b, noise_dir, noise_level, transform=transform), 
                             batch_size=batch_size, shuffle=False)
