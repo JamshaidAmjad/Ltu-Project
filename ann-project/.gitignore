@@ -32,3 +32,4 @@ results/spec_cache/
 results/test_plot.png
 !results/.gitkeep
 !results/*.md
+!results/rnn_*.png
