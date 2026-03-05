@@ -26,6 +26,7 @@ env/
 .DS_Store
 Thumbs.db
 
-# Results (optional: comment out if you want to track results)
-# ann-project/results/*
-# !ann-project/results/.gitkeep
+# Results — model weights, spectrogram cache, and test artifacts
+results/*.pth
+results/spec_cache/
+results/test_plot.png
