@@ -13,6 +13,10 @@ import torch.nn as nn
 import torchaudio.transforms as T
 from torch.utils.data import DataLoader, TensorDataset
 
+# Set device to CUDA if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+
 torch.set_num_threads(4)
 
 # ── Constants  (match CNN exactly so pipelines are interchangeable) ──────
@@ -75,7 +79,7 @@ def build_cached_loader(loader, split_name, noise_level, batch_size,
 # ── Model ────────────────────────────────────────────────────────────────
 def build_rnn_model(n_classes=N_CLASSES):
     """Build and return the RNN model."""
-    return AudioRNN(n_classes=n_classes)
+    return AudioRNN(n_classes=n_classes).to(device) # Move model to GPU
 
 
 class AudioRNN(nn.Module):
@@ -173,6 +177,7 @@ def train_rnn(model, train_loader, val_loader, epochs=30, lr=1e-3):
         tr_loss, tr_correct, tr_total = 0.0, 0, 0
 
         for specs, labels in train_loader:
+            specs, labels = specs.to(device), labels.to(device)  # Move tensors to the GPU
             optimizer.zero_grad(set_to_none=True)
             logits = model(specs)
             loss   = criterion(logits, labels)
@@ -225,6 +230,7 @@ def _evaluate(model, loader, criterion):
     model.eval()
     total_loss, correct, total = 0.0, 0, 0
     for specs, labels in loader:
+        specs, labels = specs.to(device), labels.to(device) # Move data to GPU
         logits      = model(specs)
         loss        = criterion(logits, labels)
         total_loss += loss.item() * labels.size(0)
@@ -237,7 +243,8 @@ def _evaluate(model, loader, criterion):
 def save_rnn_model(model, path='../results/rnn_model.pth'):
     """Save model state dict to disk."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    torch.save(model.state_dict(), path)
+    torch.save(model.cpu().state_dict(), path) # Move model to CPU before saving to ensure portability
+    model.to(device) # Move back to GPU
     print(f'  Model saved to {path}')
 
 
@@ -246,6 +253,7 @@ def load_rnn_model(path='../results/rnn_model.pth', n_classes=N_CLASSES):
     model = AudioRNN(n_classes=n_classes)
     state = torch.load(path, weights_only=True)
     model.load_state_dict(state)
+    model.to(device) # Ensure loaded model is on GPU
     model.eval()
     return model
 
