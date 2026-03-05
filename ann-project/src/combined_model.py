@@ -6,6 +6,7 @@ from cnn_model import build_cached_loader, mel_transform
 import math
 import numpy as np
 from sklearn.metrics import confusion_matrix
+from sklearn.metrics import ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 
 #------------Note------------
@@ -142,7 +143,7 @@ def test_combined_model(model, test_loader, criterion):
     return avg_loss, accuracy, all_preds, all_labels
 
 def saveCombinedModel(model_state, history, path='../results/combined_model.pth'):
-    if model_state is None:  # ✅ guard against saving None
+    if model_state is None:  # guard against saving None
         print("Warning: model_state is None, skipping save.")
         return
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -221,26 +222,17 @@ if __name__ == '__main__':
     all_preds_flat_05 = np.concatenate(all_preds)
     all_labels_flat_05 = np.concatenate(all_labels)
     cm = confusion_matrix(all_labels_flat_0, all_preds_flat_0)
-    plt.figure(figsize=(10,8))
-    plt.imshow(cm)
-    plt.xlabel('Predicted')
-    plt.ylabel('Actual')
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+    disp.plot(cmap='Blues')
     plt.title('Confusion Matrix for no noise')
-    plt.colorbar()
     plt.show()
     cm = confusion_matrix(all_labels_flat_01, all_preds_flat_01)
-    plt.figure(figsize=(10,8))
-    plt.imshow(cm)
-    plt.xlabel('Predicted')
-    plt.ylabel('Actual')
-    plt.title('Confusion Matrix for 10% noise')
-    plt.colorbar()
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+    disp.plot(cmap='Blues')
+    plt.title('Confusion Matrix for no noise')
     plt.show()
     cm = confusion_matrix(all_labels_flat_05, all_preds_flat_05)
-    plt.figure(figsize=(10,8))
-    plt.imshow(cm)
-    plt.xlabel('Predicted')
-    plt.ylabel('Actual')
-    plt.title('Confusion Matrix for 50% noise')
-    plt.colorbar()
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+    disp.plot(cmap='Blues')
+    plt.title('Confusion Matrix for no noise')
     plt.show()
