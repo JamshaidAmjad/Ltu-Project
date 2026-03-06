@@ -78,10 +78,6 @@ class AudioCNN(nn.Module):
         # Normalise raw dB-scale spectrograms
         self.input_norm = nn.BatchNorm2d(1)
 
-        # Frequency and Time masking (only active during training)
-        self.freq_mask = T.FrequencyMasking(freq_mask_param=8)
-        self.time_mask = T.TimeMasking(time_mask_param=16)
-
         self.features = nn.Sequential(
             # Block 1
             nn.Conv2d(1, 32, kernel_size=3, padding=1),
@@ -123,14 +119,6 @@ class AudioCNN(nn.Module):
 
     def forward(self, x):
         x = self.input_norm(x)
-
-        # Mask during training only
-        if self.training:
-            x = self.freq_mask(x)
-            x = self.freq_mask(x)
-            x = self.time_mask(x)
-            x = self.time_mask(x)
-
         x = self.features(x)
         x = self.gap(x)
         x = self.classifier(x)
