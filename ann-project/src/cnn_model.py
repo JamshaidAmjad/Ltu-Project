@@ -75,6 +75,13 @@ class AudioCNN(nn.Module):
     def __init__(self, n_classes=N_CLASSES):
         super().__init__()
 
+        # Normalise raw dB-scale spectrograms
+        self.input_norm = nn.BatchNorm2d(1)
+
+        # Frequency and Time masking (only active during training)
+        self.freq_mask = T.FrequencyMasking(freq_mask_param=8)
+        self.time_mask = T.TimeMasking(time_mask_param=16)
+
         self.features = nn.Sequential(
             # Block 1
             nn.Conv2d(1, 32, kernel_size=3, padding=1),
@@ -84,7 +91,7 @@ class AudioCNN(nn.Module):
             nn.BatchNorm2d(32),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(2, 2),
-            nn.Dropout2d(0.25),
+            nn.Dropout2d(0.15),
 
             # Block 2
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
@@ -94,7 +101,7 @@ class AudioCNN(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(2, 2),
-            nn.Dropout2d(0.25),
+            nn.Dropout2d(0.2),
 
             # Block 3
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
@@ -115,6 +122,15 @@ class AudioCNN(nn.Module):
         )
 
     def forward(self, x):
+        x = self.input_norm(x)
+
+        # Mask during training only
+        if self.training:
+            x = self.freq_mask(x)
+            x = self.freq_mask(x)
+            x = self.time_mask(x)
+            x = self.time_mask(x)
+
         x = self.features(x)
         x = self.gap(x)
         x = self.classifier(x)
@@ -149,6 +165,7 @@ def train_cnn(model, train_loader, val_loader, epochs=30, lr=1e-3):
             logits = model(specs)
             loss   = criterion(logits, labels)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
             optimizer.step()
 
             tr_loss    += loss.item() * labels.size(0)
