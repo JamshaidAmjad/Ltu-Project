@@ -1,4 +1,4 @@
------------------------------- CNN ------------------------------ 
+-------------CNN-------------
 import torch
 import torch.nn as nn
 
@@ -7,18 +7,18 @@ class AudioCNN(nn.Module):
         super().__init__()
         self.input_norm = nn.BatchNorm2d(1)
         self.features = nn.Sequential(
-            nn.Conv2d(1,16,3,padding=1), nn.BatchNorm2d(16), nn.ReLU(True),
-            nn.Conv2d(16,16,3,padding=1), nn.BatchNorm2d(16), nn.ReLU(True),
-            nn.MaxPool2d(2,2), nn.Dropout2d(0.15),
-            nn.Conv2d(16,32,3,padding=1), nn.BatchNorm2d(32), nn.ReLU(True),
-            nn.Conv2d(32,64,3,padding=1), nn.BatchNorm2d(64), nn.ReLU(True),
-            nn.MaxPool2d(2,2), nn.Dropout2d(0.2),
+            nn.Conv2d(1,64,3,padding=1), nn.BatchNorm2d(64), nn.ReLU(True),
             nn.Conv2d(64,128,3,padding=1), nn.BatchNorm2d(128), nn.ReLU(True),
-            nn.MaxPool2d(2,2), nn.Dropout2d(0.25),
+            nn.MaxPool2d(2,2), nn.Dropout2d(0.15),
+            nn.Conv2d(128,256,3,padding=1), nn.BatchNorm2d(256), nn.ReLU(True),
+            nn.Conv2d(256,512,3,padding=1), nn.BatchNorm2d(512), nn.ReLU(True),
+            nn.MaxPool2d(2,2), nn.Dropout2d(0.2),
+            #nn.Conv2d(64,256,3,padding=1), nn.BatchNorm2d(256), nn.ReLU(True),
+            #nn.MaxPool2d(2,2), nn.Dropout2d(0.25),
         )
         self.gap = nn.AdaptiveAvgPool2d((1,1))
         self.classifier = nn.Sequential(
-            nn.Flatten(), nn.Linear(128,128), nn.ReLU(True), nn.Dropout(0.5), nn.Linear(128,n_classes),
+            nn.Flatten(), nn.Linear(512,512), nn.ReLU(True), nn.Dropout(0.5), nn.Linear(512,n_classes),
         )
     def forward(self, x):
         x = self.input_norm(x)
@@ -31,9 +31,9 @@ dummy_input = torch.randn(2, 1, 64, 101).to(device)
 print(f'CNN trainable parameters: {cnn_params:,}')
 print(f'Input: [B,1,64,101] → Output: {cnn_model(dummy_input).shape}')
 
------------------------------- RNN ------------------------------ 
+-------------RNN-------------
 class AudioRNN(nn.Module):
-    def __init__(self, n_classes=N_CLASSES, hidden_size=100, num_layers=1, dropout=0.3):
+    def __init__(self, n_classes=N_CLASSES, hidden_size=200, num_layers=3, dropout=0.3):
         super().__init__()
         self.feature_norm = nn.BatchNorm1d(N_MELS)
         self.gru = nn.GRU(input_size=N_MELS, hidden_size=hidden_size, num_layers=num_layers,
@@ -59,37 +59,65 @@ print(f'RNN trainable parameters: {rnn_params:,}')
 print(f'Input: [B,1,64,101] → Output: {rnn_model(dummy_input).shape}')
 print(f'\nCNN vs RNN diff: {abs(cnn_params-rnn_params):,} ({abs(cnn_params-rnn_params)/cnn_params*100:.1f}%)')
 
------------------------------- Combined ------------------------------ 
-class SmallCombinedModel(nn.Module):
+-------------RCNN-------------
+class CombinedModel2M(nn.Module):
     def __init__(self, vocab_size=N_CLASSES):
         super().__init__()
+        # 1. Deepened CNN
         # Input: [Batch, 1, 64, 101]
         self.cnn = nn.Sequential(
-            nn.Conv2d(1, 8, kernel_size=3, padding=1), 
-            nn.BatchNorm2d(8), 
-            nn.ReLU(), 
-            nn.MaxPool2d(2, 2) 
-            # Output here is: [Batch, 8, 32, 50]
+            # Block 1: 1 -> 32 channels
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(True),
+            nn.MaxPool2d(2, 2), # Size: [B, 32, 32, 50]
+            
+            # Block 2: 32 -> 64 channels
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.MaxPool2d(2, 2), # Size: [B, 64, 16, 25]
+            nn.Dropout2d(0.2)
         )
         
-        # input_size = channels(8) * height(32) = 256
+        # 2. LSTM Setup
+        # Calculation: 64 channels * 16 height = 1024 input features
+        self.rnn_input_size = 64 * 16
+        self.hidden_size = 192 
+        
         self.rnn = nn.LSTM(
-            input_size=256,
-            hidden_size=64,
-            num_layers=1,
+            input_size=self.rnn_input_size,
+            hidden_size=self.hidden_size,
+            num_layers=2, # Adding a second layer increases capacity and params
             batch_first=True,
+            dropout=0.3
         )   
-        self.fc = nn.Linear(64, vocab_size)
+        
+        # 3. Classifier
+        self.fc = nn.Sequential(
+            nn.Linear(self.hidden_size, 256),
+            nn.ReLU(True),
+            nn.Dropout(0.5),
+            nn.Linear(256, vocab_size)
+        )
 
     def forward(self, x):
-        x = self.cnn(x) # [Batch, 8, 32, 50]
+        # CNN Feature Extraction
+        x = self.cnn(x) # [B, 128, 16, 25]
+        
+        # Reshape for RNN: [Batch, Time, Features]
+        # We treat Width (25) as the Time dimension
         b, c, h, w = x.size() 
-        x = x.permute(0, 3, 1, 2).contiguous()
-        x = x.view(b, w, c * h) 
+        x = x.permute(0, 3, 1, 2).contiguous() # [B, 25, 128, 16]
+        x = x.view(b, w, c * h)                # [B, 25, 2048]
+        
+        # RNN Temporal Processing
         x, _ = self.rnn(x)
+        
+        # Classification using the output of the last time step
         return self.fc(x[:, -1, :])
 
-# Re-initialize
-combined_model = SmallCombinedModel().to(device)
+# Initialize and verify
+combined_model = CombinedModel2M(vocab_size=N_CLASSES).to(device)
 combined_params = sum(p.numel() for p in combined_model.parameters() if p.requires_grad)
 print(f'Combined trainable parameters: {combined_params:,}')
