@@ -1,0 +1,116 @@
+--------CNN--------
+
+import torch
+import torch.nn as nn
+
+class AudioCNN(nn.Module):
+    def __init__(self, n_classes=N_CLASSES):
+        super().__init__()
+        self.input_norm = nn.BatchNorm2d(1)
+        self.features = nn.Sequential(
+            nn.Conv2d(1,16,3,padding=1), nn.BatchNorm2d(16), nn.ReLU(True),
+            nn.Conv2d(16,32,3,padding=1), nn.BatchNorm2d(32), nn.ReLU(True),
+            nn.MaxPool2d(2,2), nn.Dropout2d(0.15),
+            nn.Conv2d(32,64,3,padding=1), nn.BatchNorm2d(64), nn.ReLU(True),
+            nn.Conv2d(64,64,3,padding=1), nn.BatchNorm2d(64), nn.ReLU(True),
+            nn.MaxPool2d(2,2), nn.Dropout2d(0.2),
+            nn.Conv2d(64,128,3,padding=1), nn.BatchNorm2d(128), nn.ReLU(True),
+            nn.Conv2d(128,256,3,padding=1), nn.BatchNorm2d(256), nn.ReLU(True),
+            nn.MaxPool2d(2,2), nn.Dropout2d(0.25),
+        )
+        self.gap = nn.AdaptiveAvgPool2d((1,1))
+        self.classifier = nn.Sequential(
+            nn.Flatten(), nn.Linear(256,256), nn.ReLU(True), nn.Dropout(0.3), nn.Linear(256,n_classes),
+        )
+
+    def forward(self, x):
+        x = self.input_norm(x)
+        return self.classifier(self.gap(self.features(x)))
+
+cnn_model = AudioCNN().to(device)
+cnn_params = sum(p.numel() for p in cnn_model.parameters() if p.requires_grad)
+dummy_input = torch.randn(2, 1, 64, 101).to(device)
+print(f'CNN trainable parameters: {cnn_params:,}')
+print(f'Input: [B,1,64,101] → Output: {cnn_model(dummy_input).shape}')
+--------RNN--------
+
+class AudioRNN(nn.Module):
+    def __init__(self, n_classes=N_CLASSES, hidden_size=128, num_layers=2, dropout=0.3):
+        super().__init__()
+        self.feature_norm = nn.BatchNorm1d(N_MELS)
+        self.gru = nn.GRU(input_size=N_MELS, hidden_size=hidden_size, num_layers=num_layers,
+                          batch_first=True, bidirectional=True,
+                          dropout=dropout if num_layers > 1 else 0.0)
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_size*2, 128), nn.ReLU(True), nn.Dropout(0.5), nn.Linear(128, n_classes),
+        )
+    def forward(self, x):
+        x = x.squeeze(1)              # [B, 64, 101]
+        x = self.feature_norm(x)      # normalize mel features
+        x = x.permute(0, 2, 1)        # [B, 101, 64] — time major
+        _, h_n = self.gru(x)          # h_n: [2, B, 128]
+        h_cat = torch.cat([h_n[-2], h_n[-1]], dim=1)  # [B, 256]
+        return self.classifier(h_cat)
+
+rnn_model = AudioRNN().to(device)
+rnn_params = sum(p.numel() for p in rnn_model.parameters() if p.requires_grad)
+dummy_input = torch.randn(2, 1, 64, 101).to(device)
+# Now pass it to the model
+print(f'Input: [B,1,64,101] → Output: {cnn_model(dummy_input).shape}')
+print(f'RNN trainable parameters: {rnn_params:,}')
+print(f'Input: [B,1,64,101] → Output: {rnn_model(dummy_input).shape}')
+print(f'\nCNN vs RNN diff: {abs(cnn_params-rnn_params):,} ({abs(cnn_params-rnn_params)/cnn_params*100:.1f}%)')
+--------RCNN--------
+class SmallCombinedModel(nn.Module):
+    def __init__(self, vocab_size=N_CLASSES):
+        super().__init__()
+        # 1. Feature Extraction (CNN)
+        # Input: [Batch, 1, 64, 101] (64 Frequency bins, 101 Time frames)
+        self.cnn = nn.Sequential(
+            nn.Conv2d(1,16,3,padding=1), nn.BatchNorm2d(16), nn.ReLU(True),
+            nn.Conv2d(16,16,3,padding=1), nn.BatchNorm2d(16), nn.ReLU(True),
+            nn.MaxPool2d(2,2), nn.Dropout2d(0.15),
+            nn.Conv2d(16,32,3,padding=1), nn.BatchNorm2d(32), nn.ReLU(True),
+            nn.Conv2d(32,32,3,padding=1), nn.BatchNorm2d(32), nn.ReLU(True),
+            nn.MaxPool2d(2,2), nn.Dropout2d(0.2),
+            nn.Conv2d(32,64,3,padding=1), nn.BatchNorm2d(64), nn.ReLU(True),
+            nn.Conv2d(64,128,3,padding=1), nn.BatchNorm2d(128), nn.ReLU(True),
+            nn.MaxPool2d(2,2), nn.Dropout2d(0.25),
+
+        )
+        self.rnn = nn.LSTM(
+            input_size=128 * 8, # *8
+            hidden_size=32,   #
+            num_layers=2,      
+            batch_first=True,
+            dropout=0.3,
+            bidirectional=True 
+        )
+        self.fc = nn.Sequential(
+            nn.Linear(32 * 2, 32 * 2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(32 * 2, vocab_size)
+        )
+
+    def forward(self, x):
+        # x: [B, 1, 64, 101]
+        x = self.cnn(x) 
+        # After CNN: [B, 64, 16, 101]
+        b, c, f, t = x.size()
+        # Reshape for LSTM: [Batch, Time_Steps, Features]
+        # We want to treat 't' (101) as the sequence length
+        x = x.permute(0, 3, 1, 2).contiguous() # [B, 101, 64, 16]
+        x = x.view(b, t, c * f)                # [B, 101, 1024]
+        # LSTM pass
+        self.rnn.flatten_parameters() # Fixes the memory contiguous warning
+        x, _ = self.rnn(x)
+        # Take the output of the last time step
+        x = x[:, -1, :] 
+        
+        return self.fc(x)
+
+# Re-initialize
+combined_model = SmallCombinedModel().to(device)
+combined_params = sum(p.numel() for p in combined_model.parameters() if p.requires_grad)
+print(f'Combined trainable parameters: {combined_params:,}')
