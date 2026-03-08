@@ -100,28 +100,19 @@ class SpeechNoiseDataset(Dataset):
             
         return mixed_waveform, torch.tensor(label_idx)
 
-def get_dataloaders(noise_dir=ESC50_PATH, batch_size=32, noise_level=0.0, transform=None, train_split=0.8, val_split=0.1):
-    if train_split + val_split >= 1.0:
-        raise ValueError("train_split and val_split must sum to less than 1.0")
+def get_dataloaders(noise_dir=ESC50_PATH, batch_size=32, noise_level=0.0, transform=None):
+
+    train_base = torchaudio.datasets.SPEECHCOMMANDS(root=DATA_DIR, download=True, subset="training")
+    val_base   = torchaudio.datasets.SPEECHCOMMANDS(root=DATA_DIR, download=True, subset="validation")
+    test_base  = torchaudio.datasets.SPEECHCOMMANDS(root=DATA_DIR, download=True, subset="testing")
     
-    # Load Google Speech Commands
-    base_ds = torchaudio.datasets.SPEECHCOMMANDS(root=DATA_DIR, download=True)
+    train_ds = SpeechNoiseDataset(train_base, noise_dir, noise_level=noise_level, transform=transform)
+    val_ds   = SpeechNoiseDataset(val_base,   noise_dir, noise_level=noise_level, transform=transform)
+    test_ds  = SpeechNoiseDataset(test_base,  noise_dir, noise_level=noise_level, transform=transform)
     
-    # Default 80/10/10 Split (Train/Val/Test)
-    total = len(base_ds)
-    train_len = int(train_split * total)
-    val_len = int(val_split * total)
-    test_len = total - train_len - val_len
-    
-    train_b, val_b, test_b = torch.utils.data.random_split(base_ds, [train_len, val_len, test_len])
-    
-    # Return loaders for the specific noise levels required: 0%, 10%, or 50%
-    train_loader = DataLoader(SpeechNoiseDataset(train_b, noise_dir, 0, transform=transform), 
-                              batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(SpeechNoiseDataset(val_b, noise_dir, noise_level, transform=transform), 
-                            batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(SpeechNoiseDataset(test_b, noise_dir, noise_level, transform=transform), 
-                            batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+    val_loader   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False)
+    test_loader  = DataLoader(test_ds,  batch_size=batch_size, shuffle=False)
     
     return train_loader, val_loader, test_loader
 
