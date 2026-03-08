@@ -1,0 +1,31 @@
+
+CNN
+  Most robust (smallest drop):
+    "marvin": 90.3% → 91.8% (-1.5%)
+    "yes": 96.4% → 96.4% (+0.0%)
+    "house": 91.1% → 90.6% (+0.5%)
+    "stop": 94.6% → 93.9% (+0.7%)
+    "off": 87.6% → 86.6% (+1.0%)
+  Least robust (biggest drop):
+    "learn": 75.8% → 68.9% (+6.8%)
+    "dog": 87.3% → 80.9% (+6.4%)
+    "bed": 88.4% → 82.1% (+6.3%)
+    "follow": 73.3% → 67.4% (+5.8%)
+    "go": 87.8% → 82.3% (+5.5%)
+
+RNN (BiGRU)
+  Most robust (smallest drop):
+    "happy": 92.6% → 92.6% (+0.0%)
+    "down": 83.3% → 82.8% (+0.5%)
+    "marvin": 91.8% → 91.3% (+0.5%)
+    "yes": 97.6% → 96.7% (+1.0%)
+    "zero": 91.9% → 90.9% (+1.0%)
+  Least robust (biggest drop):
+    "follow": 85.5% → 75.0% (+10.5%)
+    "visual": 95.8% → 86.7% (+9.1%)
+...
+    "follow": 66.3% → 57.6% (+8.7%)
+    "off": 90.0% → 81.8% (+8.2%)
+    "bed": 84.1% → 76.8% (+7.2%)
+    "go": 87.8% → 81.3% (+6.5%)
+Output is truncated. View as a scrollable element or open in a text editor. Adjust cell output settings...
