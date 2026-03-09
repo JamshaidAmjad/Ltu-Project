@@ -31,6 +31,7 @@ cnn_params = sum(p.numel() for p in cnn_model.parameters() if p.requires_grad)
 dummy_input = torch.randn(2, 1, 64, 101).to(device)
 print(f'CNN trainable parameters: {cnn_params:,}')
 print(f'Input: [B,1,64,101] → Output: {cnn_model(dummy_input).shape}')
+
 ------RNN------
 class AudioRNN(nn.Module):
     def __init__(self, n_classes=N_CLASSES, hidden_size=64, num_layers=2, dropout=0.3):
@@ -58,6 +59,7 @@ print(f'Input: [B,1,64,101] → Output: {cnn_model(dummy_input).shape}')
 print(f'RNN trainable parameters: {rnn_params:,}')
 print(f'Input: [B,1,64,101] → Output: {rnn_model(dummy_input).shape}')
 print(f'\nCNN vs RNN diff: {abs(cnn_params-rnn_params):,} ({abs(cnn_params-rnn_params)/cnn_params*100:.1f}%)')
+
 ------RCNN------
 class SmallCombinedModel(nn.Module):
     def __init__(self, vocab_size=N_CLASSES):
