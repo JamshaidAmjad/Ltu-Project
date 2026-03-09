@@ -1,10 +1,10 @@
 Model                  0%      10%      50%     Params
 =======================================================
-CNN                97.7%   95.4%   87.3%    549,769
-RNN (BiGRU)        98.6%   93.2%   80.8%    568,131
-Combined           97.8%   91.0%   72.3%    454,319
+CNN                96.0%   93.8%   85.1%    549,769
+RNN (BiGRU)        94.5%   90.8%   78.2%    568,131
+Combined           96.0%   94.1%   86.0%    408,703
 
 Minimum required: 75% on clean data
-  CNN: 97.7% — PASS
-  RNN (BiGRU): 98.6% — PASS
-  Combined: 97.8% — PASS
+  CNN: 96.0% — PASS
+  RNN (BiGRU): 94.5% — PASS
+  Combined: 96.0% — PASS

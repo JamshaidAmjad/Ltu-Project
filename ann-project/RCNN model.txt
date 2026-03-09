@@ -1,0 +1,45 @@
+class SmallCombinedModel(nn.Module):
+    def __init__(self, vocab_size=N_CLASSES):
+        super().__init__()
+        self.cnn = nn.Sequential(
+            nn.Conv2d(1,4,3,padding=1), nn.BatchNorm2d(4), nn.ReLU(True),
+            nn.Conv2d(4,4,3,padding=1), nn.BatchNorm2d(4), nn.ReLU(True),
+            nn.MaxPool2d(2,2), nn.Dropout2d(0.15),
+            nn.Conv2d(4,16,3,padding=1), nn.BatchNorm2d(16), nn.ReLU(True),
+            nn.Conv2d(16,32,3,padding=1), nn.BatchNorm2d(32), nn.ReLU(True),
+            nn.MaxPool2d(2,2), nn.Dropout2d(0.2),
+            nn.Conv2d(32,32,3,padding=1), nn.BatchNorm2d(32), nn.ReLU(True),
+            nn.Conv2d(32,32,3,padding=1), nn.BatchNorm2d(32), nn.ReLU(True),
+            nn.MaxPool2d(2,2), nn.Dropout2d(0.25),
+
+        )
+        self.rnn = nn.LSTM(
+            input_size=32 * 8, # *8
+            hidden_size=64,   
+            num_layers=3,      
+            batch_first=True,
+            dropout=0.3,
+            bidirectional=True 
+        )
+        self.fc = nn.Sequential(
+            nn.Linear(64 * 2, 64 * 2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(64 * 2, vocab_size)
+        )
+
+    def forward(self, x):
+        x = self.cnn(x) 
+        b, c, f, t = x.size()
+        x = x.permute(0, 3, 1, 2).contiguous() 
+        x = x.view(b, t, c * f)               
+        self.rnn.flatten_parameters() 
+        x, _ = self.rnn(x)
+        x = x[:, -1, :] 
+        
+        return self.fc(x)
+
+# Re-initialize
+combined_model = SmallCombinedModel().to(device)
+combined_params = sum(p.numel() for p in combined_model.parameters() if p.requires_grad)
+print(f'Combined trainable parameters: {combined_params:,}')
