@@ -1,0 +1,38 @@
+# ---------------------------------------------------------------
+# Project-wide configuration
+# All tunable hyperparameters and paths live here so that
+# nothing is hard-coded inside source files.
+# ---------------------------------------------------------------
+
+project:
+  name: "chest-xray-classifier"
+  seed: 42
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  classes: ["COVID-19", "viral_pneumonia", "normal"]
+  image_size: [224, 224]      # resize target (H, W)
+  train_split: 0.70
+  val_split:   0.15
+  test_split:  0.15
+
+training:
+  epochs: 30
+  batch_size: 32
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-5
+  num_workers: 4             # DataLoader workers
+  device: "cuda"             # "cuda" | "cpu"
+
+model:
+  architecture: "resnet50"   # backbone for transfer learning
+  pretrained: true
+  num_classes: 3
+  dropout: 0.5
+
+outputs:
+  model_dir: "outputs/models"
+  figures_dir: "outputs/figures"
+  reports_dir: "outputs/reports"
+  checkpoint_name: "best_model.pth"
